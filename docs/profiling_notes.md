@@ -15,3 +15,9 @@
 - 14 delivered orders have no approval date (missing process step).
 - 6 canceled orders have a delivery date (status inconsistency, warning).
 - A missing delivery date on undelivered orders (2,957 rows) is expected, not a defect.
+
+## Reconciliation: payments vs items (price + freight)
+- 99,441 orders compared with a FULL OUTER JOIN.
+- 775 orders are paid but have no items (830 payment rows): mostly unavailable (643), canceled (179) and created (5), which is expected. 2 invoiced and 1 shipped order have no items, which is a defect.
+- 1 order has items but no payment (orphan, failure).
+- 303 orders have a payment total that differs from items plus freight by more than 0.01: 264 overpaid, 39 underpaid, average gap R$10.79, largest R$182.81. This is likely installment interest, so it's a warning within tolerance and a failure beyond it.
