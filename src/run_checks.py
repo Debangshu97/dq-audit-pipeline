@@ -22,6 +22,11 @@ CREATE TABLE IF NOT EXISTS audit.check_results (
   status       text,
   duration_s   numeric(8,2)
 );
+CREATE TABLE IF NOT EXISTS audit.failed_samples (
+  run_id     text,
+  rule_id    text,
+  sample_row jsonb
+);
 """
 
 
@@ -39,9 +44,10 @@ def main():
             status = "pass" if failed == 0 else r["severity"]
             conn.execute(
                 text("""
-                INSERT INTO audit.check_results VALUES
-                (:run_id, :run_ts, :rule_id, :tbl, :dim, :sev, :chk, :fail, :rate, :status, :dur)
-            """),
+                    INSERT INTO audit.check_results VALUES
+                    (:run_id, :run_ts, :rule_id, :tbl, :dim, :sev,
+                     :chk, :fail, :rate, :status, :dur)
+                """),
                 dict(
                     run_id=run_id,
                     run_ts=run_ts,
@@ -56,6 +62,15 @@ def main():
                     dur=time.time() - start,
                 ),
             )
+            if failed:
+                conn.execute(
+                    text(f"""
+                        INSERT INTO audit.failed_samples
+                        SELECT :run_id, :rule_id, to_jsonb(f)
+                        FROM ({r['sql']}) f LIMIT 20
+                    """),
+                    dict(run_id=run_id, rule_id=r["id"]),
+                )
             print(f"{status:5s} {r['id']:40s} {failed:>6,} / {checked:,}")
     print(f"run {run_id} done")
 
