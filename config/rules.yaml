@@ -29,3 +29,57 @@ rules:
     sql: >
       SELECT order_id FROM raw.orders
       GROUP BY order_id HAVING count(*) > 1
+
+  - id: orders_delivered_has_approval_date
+    table: raw.orders
+    dimension: completeness
+    severity: fail
+    sql: >
+      SELECT order_id FROM raw.orders
+      WHERE order_status = 'delivered' AND order_approved_at = ''
+
+  - id: orders_canceled_not_delivered
+    table: raw.orders
+    dimension: validity
+    severity: warn
+    sql: >
+      SELECT order_id FROM raw.orders
+      WHERE order_status = 'canceled' AND order_delivered_customer_date <> ''
+
+  - id: orders_delivery_after_purchase
+    table: raw.orders
+    dimension: validity
+    severity: fail
+    sql: >
+      SELECT order_id FROM raw.orders
+      WHERE order_delivered_customer_date <> ''
+        AND order_delivered_customer_date::timestamp < order_purchase_timestamp::timestamp
+
+  - id: items_price_positive
+    table: raw.order_items
+    dimension: validity
+    severity: fail
+    sql: >
+      SELECT order_id, order_item_id FROM raw.order_items
+      WHERE price = '' OR price::numeric <= 0
+
+  - id: items_order_exists
+    table: raw.order_items
+    dimension: reconciliation
+    severity: fail
+    sql: >
+      SELECT i.order_id FROM raw.order_items i
+      LEFT JOIN raw.orders o USING (order_id)
+      WHERE o.order_id IS NULL
+
+  - id: payments_match_items_total
+    table: raw.order_payments
+    dimension: reconciliation
+    severity: warn
+    sql: >
+      WITH items AS (SELECT order_id, sum(price::numeric + freight_value::numeric) AS t
+                     FROM raw.order_items GROUP BY order_id),
+           pays  AS (SELECT order_id, sum(payment_value::numeric) AS t
+                     FROM raw.order_payments GROUP BY order_id)
+      SELECT order_id FROM items JOIN pays USING (order_id)
+      WHERE abs(items.t - pays.t) > 0.01- id: orders_order_id_unique
