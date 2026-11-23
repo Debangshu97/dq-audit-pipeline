@@ -82,4 +82,4 @@ rules:
            pays  AS (SELECT order_id, sum(payment_value::numeric) AS t
                      FROM raw.order_payments GROUP BY order_id)
       SELECT order_id FROM items JOIN pays USING (order_id)
-      WHERE abs(items.t - pays.t) > 0.01- id: orders_order_id_unique
+      WHERE abs(items.t - pays.t) > 0.01
