@@ -1,0 +1,31 @@
+rules:
+  - id: orders_order_id_not_blank
+    table: raw.orders
+    dimension: completeness
+    severity: fail
+    sql: SELECT order_id FROM raw.orders WHERE order_id = ''
+
+  - id: orders_delivered_has_delivery_date
+    table: raw.orders
+    dimension: completeness
+    severity: fail
+    sql: >
+      SELECT order_id FROM raw.orders
+      WHERE order_status = 'delivered' AND order_delivered_customer_date = ''
+
+  - id: orders_status_allowed
+    table: raw.orders
+    dimension: validity
+    severity: fail
+    sql: >
+      SELECT order_id FROM raw.orders
+      WHERE order_status NOT IN ('delivered','shipped','canceled','unavailable',
+                                 'invoiced','processing','created','approved')
+
+  - id: orders_order_id_unique
+    table: raw.orders
+    dimension: uniqueness
+    severity: fail
+    sql: >
+      SELECT order_id FROM raw.orders
+      GROUP BY order_id HAVING count(*) > 1
