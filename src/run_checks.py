@@ -1,9 +1,14 @@
+import sys
+
 import time, uuid
 from datetime import datetime
 from pathlib import Path
 import yaml
 from sqlalchemy import text
 from db import get_engine
+
+batch_date = sys.argv[1] if len(sys.argv) > 1 else None
+params = {"batch_date": batch_date}
 
 RULES = Path(__file__).resolve().parents[1] / "config" / "rules.yaml"
 
@@ -38,8 +43,8 @@ def main():
         conn.execute(text(DDL))
         for r in rules:
             start = time.time()
-            checked = conn.execute(text(f"SELECT count(*) FROM {r['table']}")).scalar()
-            failed = conn.execute(text(f"SELECT count(*) FROM ({r['sql']}) f")).scalar()
+            checked = conn.execute(text(f"SELECT count(*) FROM {r['table']}"),params).scalar()
+            failed = conn.execute(text(f"SELECT count(*) FROM ({r['sql']}) f"),params).scalar()
             rate = 1 - failed / checked if checked else 1
             status = "pass" if failed == 0 else r["severity"]
             conn.execute(
@@ -69,7 +74,7 @@ def main():
                         SELECT :run_id, :rule_id, to_jsonb(f)
                         FROM ({r['sql']}) f LIMIT 20
                     """),
-                    dict(run_id=run_id, rule_id=r["id"]),
+                    dict(run_id=run_id, rule_id=r["id"])
                 )
             print(f"{status:5s} {r['id']:40s} {failed:>6,} / {checked:,}")
     print(f"run {run_id} done")

@@ -83,3 +83,15 @@ rules:
                      FROM raw.order_payments GROUP BY order_id)
       SELECT order_id FROM items JOIN pays USING (order_id)
       WHERE abs(items.t - pays.t) > 0.01
+
+  - id: stage_orders_fresh
+    table: stage.orders
+    dimension: freshness
+    severity: fail
+    sql: |
+      SELECT CAST(:batch_date AS date) AS batch_date,
+             max(order_purchase_timestamp)::date AS latest_date
+      FROM stage.orders
+      WHERE _batch_date = CAST(:batch_date AS date)
+      HAVING max(order_purchase_timestamp) IS NULL
+          OR max(order_purchase_timestamp)::date < CAST(:batch_date AS date)
